@@ -4,8 +4,9 @@ import yaml
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from torch.profiler import profile, ProfilerActivity
 
-from models import SimpleCNN
+from models import get_model
 from data import get_dataloaders
 
 
@@ -49,11 +50,47 @@ def train():
 
     train_loader, test_loader = get_dataloaders(batch_size=batch_size)
 
-    model = SimpleCNN().to(device)
+    model_name = cfg["model"]
+    print("Using model:", model_name)
+
+    model = get_model(model_name).to(device)
 
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=lr)
 
+    # -------- PROFILER BLOCK --------
+    print("\nRunning profiler on first 10 batches...\n")
+
+    model.train()
+
+    with profile(
+        activities=[ProfilerActivity.CPU],
+        record_shapes=True
+    ) as prof:
+
+        for step, (images, labels) in enumerate(train_loader):
+            if step >= 10:
+                break
+
+            images = images.to(device)
+            labels = labels.to(device)
+
+            optimizer.zero_grad()
+
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+
+            loss.backward()
+            optimizer.step()
+
+    print(prof.key_averages().table(
+        sort_by="cpu_time_total",
+        row_limit=15
+    ))
+
+    print("\nStarting normal training...\n")
+
+    # -------- NORMAL TRAINING --------
     for epoch in range(epochs):
         model.train()
 
