@@ -1,6 +1,6 @@
-model: mlp
+model: resnet18
+epochs: 1
 batch_size: 64
-epochs: 3
 learning_rate: 0.001
 checkpoint_dir: checkpoints
 resume: false
